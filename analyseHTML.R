@@ -1,4 +1,4 @@
-setwd("~/Google Drive/_CITY/JOM834_ScienceReporting/ContentAnalysis/AutomationHTML")
+setwd("~/Google Drive/_CITY/JOM834_ScienceReporting/ContentAnalysis/Content Analysis II/part I - computational/contentanalysis")
 library(XML)
 
 DF = data.frame( outlet = character(), date = character(), title = character(), text = character())
@@ -30,6 +30,10 @@ for(i in 1:length(list.files("RAW/"))){
 
 save(DF, file="DF.RData")
 
+## --------------------------------------------------------------------
+## automated analysis
+## --------------------------------------------------------------------
+load(DF)
 
 ## OUTLET
 DF[unlist(lapply(DF$outlet, function(x){(regexpr(".*THE DAILY TELEGRAPH.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[UK] The Telegraph"
@@ -54,9 +58,9 @@ DF$PUBWEEK <- format(DF$PUBDATE, format="%U")
 ######################### TEXT ANALYSIS
 library(stringr)
 
-## literal search terms
-
-searchterms = c("Ebola","Liberia","Sierra Leone","Guinea","West Africa")
+searchterms <- (read.table("searchterms.txt",sep=";"))$V1
+searchterms
+head(DF[,-4])
 
 for(i in 1:length(searchterms)){
   searchterm = searchterms[i];
@@ -64,11 +68,38 @@ for(i in 1:length(searchterms)){
   DF[,paste("count",sub("\\s","",tolower(searchterm)),sep="_")] <- str_count(tolower(DF$text), tolower(searchterm));
 }
 
+## some sanity tests
+as.data.frame(apply(DF[,-4], 2, max))
+DF[DF$count_liberia==58,c(1:3)]
 
-## fuzzy search terms
-DF$m_Transmission <- "N"
-DF[unlist(lapply(DF$text, function(x){(regexpr(".*(transmission|spread).*", tolower(x), perl=TRUE)[1] >= 0)})),"m_Transmission"] <- "Y"
-DF$m_Transmission <- as.factor(DF$m_Transmission)
+write.table(DF[,-4], file="articles_all.txt", sep="\t", quote=F, row.names=F, col.names=T)
+
+## --------------------------------------------------------------------
+## manual analysis
+## --------------------------------------------------------------------
+
+## identify the articles which did not have any mention any of the case-specific terms
+DF$all <- apply(DF[,c(15:85)],1,sum)
+DF_sub <- DF[DF$all>0,]
+dim(DF_sub)[1]
+
+## now assign the subset of articles to people in the group randomly
+a <- dim(DF_sub)[1]
+names <- c("Matt", "Kevin","Caitlin","Fathima","Richard","Jocelyn",
+           "Ines","Lindsay", "Sara", "Peter", "Fiona")
+
+contentA_1 <- data.frame(articleNr = seq(1,a,by=1), reviewer_01 = c(sample( rep(names,(a)/length(names))), names[1:((a)%%length(names))]))
+DF_manual_1 <- cbind.data.frame(contentA_1, DF_sub[,-4])
+write.table(DF_manual_1, file="articles_subset_1.txt", sep="\t", quote=F, row.names=F, col.names=T)
+
+
+contentA_rev <- data.frame(articleNr = seq(1,a,by=2), reviewer_02 = c(sample( rep(names,(a/2)/length(names))), names[1:((a/2)%%length(names))]))
+DF_manual_rev <- cbind.data.frame(contentA_rev, DF_sub[seq(1,a,by=2),-4])
+write.table(DF_manual_rev, file="articles_subset_rev.txt", sep="\t", quote=F, row.names=F, col.names=T)
+
+
+
+
 
 
 colLI <- c("#8c2d04","#ec7014","#fec44f")
