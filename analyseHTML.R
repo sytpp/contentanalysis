@@ -33,26 +33,27 @@ save(DF, file="DF.RData")
 ## --------------------------------------------------------------------
 ## automated analysis
 ## --------------------------------------------------------------------
-load(DF)
+load("DF.RData")
+DF_work <- DF
 
 ## OUTLET
-DF[unlist(lapply(DF$outlet, function(x){(regexpr(".*THE DAILY TELEGRAPH.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[UK] The Telegraph"
-DF[unlist(lapply(DF$outlet, function(x){(regexpr(".*MAIL.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[UK] The Daily Mail"
-DF[unlist(lapply(DF$outlet, function(x){(regexpr(".*GUARDIAN.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[UK] The Guardian"
-DF[unlist(lapply(DF$outlet, function(x){(regexpr(".*ANALYST.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[LI] The Analyst"
-DF[unlist(lapply(DF$outlet, function(x){(regexpr(".*INQUIRER.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[LI] The Inquirer"
-DF[unlist(lapply(DF$outlet, function(x){(regexpr(".*THE NEWS.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[LI] The NEWS"
-DF$PUBL <- as.factor(DF$PUBL)
-summary(DF$PUBL)
+DF_work[unlist(lapply(DF_work$outlet, function(x){(regexpr(".*THE DAILY TELEGRAPH.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[UK] The Telegraph"
+DF_work[unlist(lapply(DF_work$outlet, function(x){(regexpr(".*MAIL.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[UK] The Daily Mail"
+DF_work[unlist(lapply(DF_work$outlet, function(x){(regexpr(".*GUARDIAN.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[UK] The Guardian"
+DF_work[unlist(lapply(DF_work$outlet, function(x){(regexpr(".*ANALYST.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[LI] The Analyst"
+DF_work[unlist(lapply(DF_work$outlet, function(x){(regexpr(".*INQUIRER.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[LI] The Inquirer"
+DF_work[unlist(lapply(DF_work$outlet, function(x){(regexpr(".*THE NEWS.*", toupper(x), perl=TRUE)[1] >= 0)})),"PUBL"] <- "[LI] The NEWS"
+DF_work$PUBL <- as.factor(DF_work$PUBL)
+summary(DF_work$PUBL)
 
 ## COUNTRY
-DF$COUNTRY <- ifelse(DF$PUBL=="[LI] The Analyst"|DF$PUBL=="[LI] The Inquirer"|DF$PUBL=="[LI] The NEWS","LI","UK")
-DF$COUNTRY <- as.factor(DF$COUNTRY)
-summary(DF$COUNTRY)
+DF_work$COUNTRY <- ifelse(DF_work$PUBL=="[LI] The Analyst"|DF_work$PUBL=="[LI] The Inquirer"|DF_work$PUBL=="[LI] The NEWS","LI","UK")
+DF_work$COUNTRY <- as.factor(DF_work$COUNTRY)
+summary(DF_work$COUNTRY)
 
 ## DATE
-DF$PUBDATE <- as.Date(DF[,"date"], format="%B %d, %Y")
-DF$PUBWEEK <- format(DF$PUBDATE, format="%U")
+DF_work$PUBDATE <- as.Date(DF_work[,"date"], format="%B %d, %Y")
+DF_work$PUBWEEK <- format(DF_work$PUBDATE, format="%U")
 
 #######################################
 ######################### TEXT ANALYSIS
@@ -60,68 +61,22 @@ library(stringr)
 
 searchterms <- (read.table("searchterms.txt",sep=";"))$V1
 searchterms
-head(DF[,-4])
+head(DF_work[,-4])
 
 for(i in 1:length(searchterms)){
   searchterm = searchterms[i];
   print (searchterm);
-  DF[,paste("count",sub("\\s","",tolower(searchterm)),sep="_")] <- str_count(tolower(DF$text), tolower(searchterm));
+  DF_work[,paste("count",sub("\\s","",tolower(searchterm)),sep="_")] <- str_count(tolower(DF_work$text), tolower(searchterm));
 }
 
 ## some sanity tests
-as.data.frame(apply(DF[,-4], 2, max))
-DF[DF$count_liberia==58,c(1:3)]
+as.data.frame(apply(DF_work[,-4], 2, max))
+DF_work[DF_work$count_liberia==58,c(1:3)]
 
-write.table(DF[,-4], file="articles_all.txt", sep="\t", quote=F, row.names=F, col.names=T)
+write.table(DF_work[,-4], file="articles_all.txt", sep="\t", quote=F, row.names=F, col.names=T)
 
 ## --------------------------------------------------------------------
-## manual analysis
-## --------------------------------------------------------------------
-
-## identify the articles which did not have any mention any of the case-specific terms
-DF$all <- apply(DF[,c(15:85)],1,sum)
-DF_sub <- DF[DF$all>0,]
-dim(DF_sub)[1]
-
-## now assign the subset of articles to people in the group randomly
-a <- dim(DF_sub)[1]
-names <- c("Matt", "Kevin","Caitlin","Fathima","Richard","Jocelyn",
-           "Ines","Lindsay", "Sara", "Peter", "Fiona")
-
-contentA_1 <- data.frame(articleNr = seq(1,a,by=1), reviewer_01 = c(sample( rep(names,(a)/length(names))), names[1:((a)%%length(names))]))
-DF_manual_1 <- cbind.data.frame(contentA_1, DF_sub[,-4])
-write.table(DF_manual_1, file="articles_subset_1.txt", sep="\t", quote=F, row.names=F, col.names=T)
-
-
-contentA_rev <- data.frame(articleNr = seq(1,a,by=2), reviewer_02 = c(sample( rep(names,(a/2)/length(names))), names[1:((a/2)%%length(names))]))
-DF_manual_rev <- cbind.data.frame(contentA_rev, DF_sub[seq(1,a,by=2),-4])
-write.table(DF_manual_rev, file="articles_subset_rev.txt", sep="\t", quote=F, row.names=F, col.names=T)
-
-
-
-
-
-
-colLI <- c("#8c2d04","#ec7014","#fec44f")
-colUK <- c("#8c96c6","#88419d","#2171b5")
-library(ggplot2)
-ggplot(DF, aes(x=PUBWEEK, y=..count.., color=PUBL)) + 
-  geom_point(stat="bin", size=4) + 
-  geom_line(aes(x=PUBWEEK, y=..count..,group=PUBL, color=PUBL),stat="bin", position="identity") +
-  scale_color_manual(values=c(colLI,colUK)) +
-#  facet_wrap(~COUNTRY, nrow=2) +
-  ylab("") + xlab("Publication calendar week")
-
-
-
-
-ggplot(ddply(DF, .(PUBL,PUBWEEK), summarize, count_var=mean(count_sierraleone)), 
-       aes(x=as.numeric(PUBWEEK), y=count_var, color=PUBL)) + 
-  geom_point(stat="identity", size=4) +
-  geom_line(stat="identity", aes(x=as.numeric(PUBWEEK), y=count_var, color=PUBL)) +
-  scale_color_manual(values=c(colLI,colUK)) +
-  ylab("") + xlab("Publication calendar week")
-
+save(DF_work, file="DF_work.RData")
 
 
 
